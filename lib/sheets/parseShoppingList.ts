@@ -15,7 +15,12 @@ export interface ShoppingList {
 }
 
 export async function parseShoppingListSheet(spreadsheetId: string): Promise<ShoppingList> {
-  const values = await getSheetValues(spreadsheetId, '🛒 Shopping List!A1:O200')
+  let values: string[][]
+  try {
+    values = await getSheetValues(spreadsheetId, '🛒 Shopping List!A1:O200')
+  } catch {
+    return { items: [] }
+  }
 
   if (!values || values.length < 3) return { items: [] }
 

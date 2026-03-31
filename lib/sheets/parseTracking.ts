@@ -90,7 +90,12 @@ function cell(row: string[], col: number): string {
 }
 
 export async function parseTrackingSheet(spreadsheetId: string): Promise<MonthData[]> {
-  const values = await getSheetValues(spreadsheetId, '📊 Tracking!A1:BJ500')
+  let values: string[][]
+  try {
+    values = await getSheetValues(spreadsheetId, '📊 Tracking!A1:BJ500')
+  } catch {
+    return []
+  }
 
   const months: MonthData[] = []
   const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December']

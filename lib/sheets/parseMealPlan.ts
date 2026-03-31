@@ -9,7 +9,12 @@ export interface MealPlanDay {
 }
 
 export async function parseMealPlanSheet(spreadsheetId: string): Promise<MealPlanDay[]> {
-  const values = await getSheetValues(spreadsheetId, '📋 Meal Plan!A1:Z100')
+  let values: string[][]
+  try {
+    values = await getSheetValues(spreadsheetId, '📋 Meal Plan!A1:Z100')
+  } catch {
+    return []
+  }
 
   if (!values || values.length < 2) return []
 
@@ -54,7 +59,6 @@ export async function parseMealPlanSheet(spreadsheetId: string): Promise<MealPla
   for (let r = 2; r < values.length; r++) {
     const row = values[r] ?? []
     const sectionLabel = row[0]?.trim() ?? ''
-    const mealLabel = row[1]?.trim() ?? ''
 
     // Detect section changes from col 0
     if (sectionLabel.toLowerCase().includes('miscellaneous')) {
