@@ -13,6 +13,10 @@ interface ClientData {
   spreadsheet_id: string
   package_end_date: string | null
   whatsapp_number: string | null
+  trainerize_url: string | null
+  terms_url: string | null
+  expectations_url: string | null
+  onboarding_form_url: string | null
 }
 
 export default function EditClientPage() {
@@ -48,10 +52,10 @@ export default function EditClientPage() {
           whatsappNumber: data.whatsapp_number ?? '',
           packageEndDate: data.package_end_date ?? '',
           spreadsheetUrl: data.spreadsheet_id,
-          trainerizeUrl: (data as Record<string, string>).trainerize_url ?? '',
-          termsUrl: (data as Record<string, string>).terms_url ?? '',
-          expectationsUrl: (data as Record<string, string>).expectations_url ?? '',
-          onboardingFormUrl: (data as Record<string, string>).onboarding_form_url ?? '',
+          trainerizeUrl: data.trainerize_url ?? '',
+          termsUrl: data.terms_url ?? '',
+          expectationsUrl: data.expectations_url ?? '',
+          onboardingFormUrl: data.onboarding_form_url ?? '',
         })
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : 'Failed to load')
