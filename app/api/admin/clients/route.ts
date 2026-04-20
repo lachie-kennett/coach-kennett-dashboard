@@ -27,7 +27,7 @@ export async function GET() {
   const admin = getAdmin()
   const { data: clients, error } = await admin
     .from('clients')
-    .select('id, name, email, sex, spreadsheet_id, created_at, is_coach')
+    .select('id, name, email, sex, spreadsheet_id, created_at, is_coach, drive_folder_url, trainerize_url, terms_url, expectations_url, onboarding_form_url, step_form_sent, step_terms_signed, step_expectations_signed, step_trainerize_setup, step_tracker_created, step_bloods_reminder_sent, step_intro_call_done')
     .eq('is_coach', false)
     .order('name')
 
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await request.json()
-  const { name, email, password, spreadsheetUrl, sex = 'Male' } = body
+  const { name, email, password, spreadsheetUrl, sex = 'Male', packageEndDate, whatsappNumber } = body
 
   if (!name || !email || !password || !spreadsheetUrl) {
     return NextResponse.json({ error: 'name, email, password, and spreadsheetUrl are required' }, { status: 400 })
@@ -72,6 +72,8 @@ export async function POST(request: NextRequest) {
     spreadsheet_id: spreadsheetId,
     sex,
     is_coach: false,
+    ...(packageEndDate ? { package_end_date: packageEndDate } : {}),
+    ...(whatsappNumber ? { whatsapp_number: whatsappNumber } : {}),
   }).select().single()
 
   if (dbError) {

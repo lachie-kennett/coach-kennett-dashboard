@@ -2,19 +2,21 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Trophy, Droplets, Zap, Users, ChevronLeft, Salad } from 'lucide-react'
+import { LayoutDashboard, Trophy, Droplets, Zap, Users, ChevronLeft, Salad, ShieldAlert, Home, UserPlus, FolderOpen } from 'lucide-react'
 
 const clientTabs = [
   { href: '/dashboard',   label: 'My Data',     icon: LayoutDashboard },
   { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
   { href: '/performance', label: 'Performance', icon: Zap },
-  { href: '/nutrition',   label: 'Nutrition',   icon: Salad },
   { href: '/bloods',      label: 'Bloods',      icon: Droplets },
+  { href: '/resources',   label: 'Resources',   icon: FolderOpen },
 ]
 
 const coachTabs = [
+  { href: '/home',        label: 'Home',        icon: Home },
   { href: '/clients',     label: 'Clients',     icon: Users },
-  { href: '/leaderboard', label: 'Leaderboard', icon: Trophy },
+  { href: '/onboarding',  label: 'Onboarding',  icon: UserPlus },
+  { href: '/retention',   label: 'Retention',   icon: ShieldAlert },
 ]
 
 export default function BottomNav({ isCoach }: { isCoach: boolean }) {

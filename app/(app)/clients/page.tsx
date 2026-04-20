@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { Users, Plus, LogOut, RefreshCw, ChevronRight } from 'lucide-react'
+import { Users, Plus, LogOut, RefreshCw, ChevronRight, Pencil, Sheet } from 'lucide-react'
 
 interface ClientSummary {
   id: string
@@ -56,9 +56,16 @@ export default function ClientsPage() {
             <RefreshCw size={18} />
           </button>
           <Link
+            href="/clients/import"
+            className="p-2 text-slate-400 hover:text-orange-400 transition-colors"
+            title="Import from CRM"
+          >
+            <Sheet size={18} />
+          </Link>
+          <Link
             href="/clients/new"
             className="p-2 text-slate-400 hover:text-orange-400 transition-colors"
-            title="Add client"
+            title="Add client manually"
           >
             <Plus size={18} />
           </Link>
@@ -89,9 +96,8 @@ export default function ClientsPage() {
           <p className="text-slate-500 text-sm mb-4">{clients.length} client{clients.length !== 1 ? 's' : ''}</p>
           <div className="space-y-3">
             {clients.map(client => (
-              <Link
+              <div
                 key={client.id}
-                href={`/clients/${client.id}/dashboard`}
                 className="flex items-center gap-4 bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4 hover:border-orange-500/40 hover:bg-slate-800 transition-all group"
               >
                 {/* Avatar */}
@@ -102,15 +108,25 @@ export default function ClientsPage() {
                 </div>
 
                 {/* Info */}
-                <div className="flex-1 min-w-0">
+                <Link href={`/clients/${client.id}/dashboard`} className="flex-1 min-w-0">
                   <p className="font-semibold text-white truncate group-hover:text-orange-300 transition-colors">
                     {client.name}
                   </p>
                   <p className="text-xs text-slate-500 truncate">{client.email}</p>
-                </div>
+                </Link>
 
-                <ChevronRight size={16} className="text-slate-600 group-hover:text-slate-400 flex-shrink-0 transition-colors" />
-              </Link>
+                <Link
+                  href={`/clients/${client.id}/edit`}
+                  className="p-2 text-slate-600 hover:text-orange-400 transition-colors flex-shrink-0"
+                  title="Edit client"
+                  onClick={e => e.stopPropagation()}
+                >
+                  <Pencil size={15} />
+                </Link>
+                <Link href={`/clients/${client.id}/dashboard`} className="flex-shrink-0">
+                  <ChevronRight size={16} className="text-slate-600 group-hover:text-slate-400 transition-colors" />
+                </Link>
+              </div>
             ))}
 
             {clients.length === 0 && (

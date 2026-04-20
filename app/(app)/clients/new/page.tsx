@@ -13,6 +13,8 @@ export default function NewClientPage() {
     password: '',
     spreadsheetUrl: '',
     sex: 'Male',
+    packageEndDate: '',
+    whatsappNumber: '',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -125,6 +127,29 @@ export default function NewClientPage() {
               </button>
             ))}
           </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-1.5">WhatsApp Number <span className="text-slate-500 font-normal">(optional)</span></label>
+          <input
+            type="tel"
+            value={form.whatsappNumber}
+            onChange={e => update('whatsappNumber', e.target.value)}
+            placeholder="+61412345678"
+            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 transition-colors"
+          />
+          <p className="text-xs text-slate-500 mt-1.5">Include country code — used for tracker nudges</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-1.5">Package End Date <span className="text-slate-500 font-normal">(optional)</span></label>
+          <input
+            type="date"
+            value={form.packageEndDate}
+            onChange={e => update('packageEndDate', e.target.value)}
+            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 transition-colors"
+          />
+          <p className="text-xs text-slate-500 mt-1.5">Used for retention alerts in the final 2 weeks</p>
         </div>
 
         {error && (

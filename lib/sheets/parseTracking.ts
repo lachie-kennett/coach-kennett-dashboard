@@ -165,9 +165,29 @@ export async function parseTrackingSheet(spreadsheetId: string): Promise<MonthDa
   return months
 }
 
-function isCompleted(day: DayEntry): boolean {
+export function isCompleted(day: DayEntry): boolean {
   // A day is "tracked" if any key metric has been filled in
   return !!(day.sleep || day.steps || day.weight || day.energy || day.water || day.caloriesTracked)
+}
+
+export function getLastLoggedDate(months: MonthData[]): string | null {
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December']
+  const year = new Date().getFullYear()
+  for (let mi = months.length - 1; mi >= 0; mi--) {
+    const month = months[mi]
+    const monthIndex = monthNames.indexOf(month.month)
+    if (monthIndex === -1) continue
+    for (let di = month.days.length - 1; di >= 0; di--) {
+      const day = month.days[di]
+      if (isCompleted(day) && day.date) {
+        const [d, m] = day.date.split('/').map(Number)
+        if (!isNaN(d) && !isNaN(m)) {
+          return new Date(year, m - 1, d).toISOString().split('T')[0]
+        }
+      }
+    }
+  }
+  return null
 }
 
 export function computeAdherenceStats(months: MonthData[]) {
