@@ -45,13 +45,8 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const sheetId = process.env.GOOGLE_CRM_SHEET_ID!
-  const gid = parseInt(process.env.GOOGLE_CRM_SHEET_GID ?? '0')
+  const sheetName = process.env.GOOGLE_CRM_SHEET_NAME ?? '🟢 Active Clients'
   const sheets = getSheetsClient()
-
-  // Find sheet name from gid
-  const meta = await sheets.spreadsheets.get({ spreadsheetId: sheetId })
-  const sheetObj = meta.data.sheets?.find(s => s.properties?.sheetId === gid)
-  const sheetName = sheetObj?.properties?.title ?? 'Sheet1'
 
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: sheetId,
@@ -59,9 +54,10 @@ export async function GET() {
   })
 
   const rows = res.data.values ?? []
-  if (rows.length < 2) return NextResponse.json([])
+  if (rows.length < 3) return NextResponse.json([])
 
-  const headers = (rows[0] as string[]).map(h => h?.toString() ?? '')
+  // Row 1 is section labels, row 2 is actual column headers
+  const headers = (rows[1] as string[]).map(h => h?.toString() ?? '')
 
   const cols = {
     firstName:          findCol(headers, 'first name', 'firstname'),
@@ -81,7 +77,7 @@ export async function GET() {
   const { data: existing } = await admin.from('clients').select('email')
   const existingEmails = new Set((existing ?? []).map(c => c.email?.toLowerCase()))
 
-  const contacts = (rows.slice(1) as string[][])
+  const contacts = (rows.slice(5) as string[][])
     .map(row => {
       const get = (i: number) => (i >= 0 ? row[i]?.toString().trim() ?? '' : '')
       const firstName = get(cols.firstName)
