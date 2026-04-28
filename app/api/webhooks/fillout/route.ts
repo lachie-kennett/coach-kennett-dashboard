@@ -89,20 +89,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'No questions in payload' }, { status: 400 })
   }
 
-  // Log field names so we can see exactly what Fillout sends
-  console.log('Fillout webhook: field names received:', questions.map(q => q.name))
-
   // Extract fields
   const fullName = getField(questions, 'full name', 'name', 'full_name')
   const email = getField(questions, 'email', 'email address')
   const mobile = getField(questions, 'best contact number', 'phone', 'mobile', 'contact number', 'phone number', 'mobile number')
-  const birthday = getField(questions, 'birth date', 'date of birth', 'birthday', 'dob', 'birth date')
+  const birthday = getField(questions, 'birth date', 'date of birth', 'birthday', 'dob')
 
   if (!fullName || !email) {
-    const nameField = questions.find(q => q.name.toLowerCase().trim() === 'full name')
-    const emailField = questions.find(q => q.name.toLowerCase().trim() === 'email')
-    console.error('Fillout webhook: missing name or email', { fullName, email, nameField, emailField })
-    return NextResponse.json({ error: 'Missing required fields', nameField, emailField }, { status: 400 })
+    console.error('Fillout webhook: missing name or email', { fullName, email })
+    return NextResponse.json({ error: 'Missing required fields: full name and email' }, { status: 400 })
   }
 
   const admin = getAdmin()
