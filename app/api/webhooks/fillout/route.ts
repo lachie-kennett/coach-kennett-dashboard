@@ -99,8 +99,9 @@ export async function POST(request: NextRequest) {
   const birthday = getField(questions, 'birth date', 'date of birth', 'birthday', 'dob')
 
   if (!fullName || !email) {
-    console.error('Fillout webhook: missing name or email', { fullName, email })
-    return NextResponse.json({ error: 'Missing required fields: full name and email' }, { status: 400 })
+    const fieldNames = questions.map(q => q.name)
+    console.error('Fillout webhook: missing name or email', { fullName, email, fieldNames })
+    return NextResponse.json({ error: 'Missing required fields', fieldNames }, { status: 400 })
   }
 
   const admin = getAdmin()
