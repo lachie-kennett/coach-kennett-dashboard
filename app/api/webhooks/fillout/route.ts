@@ -89,6 +89,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'No questions in payload' }, { status: 400 })
   }
 
+  // Log field names so we can see exactly what Fillout sends
+  console.log('Fillout webhook: field names received:', questions.map(q => q.name))
+
   // Extract fields
   const fullName = getField(questions, 'full name', 'name', 'full_name')
   const email = getField(questions, 'email', 'email address')
