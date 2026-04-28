@@ -96,12 +96,13 @@ export async function POST(request: NextRequest) {
   const fullName = getField(questions, 'full name', 'name', 'full_name')
   const email = getField(questions, 'email', 'email address')
   const mobile = getField(questions, 'best contact number', 'phone', 'mobile', 'contact number', 'phone number', 'mobile number')
-  const birthday = getField(questions, 'birth date', 'date of birth', 'birthday', 'dob')
+  const birthday = getField(questions, 'birth date', 'date of birth', 'birthday', 'dob', 'birth date')
 
   if (!fullName || !email) {
-    const fieldNames = questions.map(q => q.name)
-    console.error('Fillout webhook: missing name or email', { fullName, email, fieldNames })
-    return NextResponse.json({ error: 'Missing required fields', fieldNames }, { status: 400 })
+    const nameField = questions.find(q => q.name.toLowerCase().trim() === 'full name')
+    const emailField = questions.find(q => q.name.toLowerCase().trim() === 'email')
+    console.error('Fillout webhook: missing name or email', { fullName, email, nameField, emailField })
+    return NextResponse.json({ error: 'Missing required fields', nameField, emailField }, { status: 400 })
   }
 
   const admin = getAdmin()
