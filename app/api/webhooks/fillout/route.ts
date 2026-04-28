@@ -2,8 +2,6 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 function getAdmin() {
   return createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -12,6 +10,7 @@ function getAdmin() {
 }
 
 async function sendWelcomeEmail(firstName: string, email: string) {
+  const resend = new Resend(process.env.RESEND_API_KEY)
   await resend.emails.send({
     from: 'Lachie <lachie@coachkennett.com>',
     to: email,

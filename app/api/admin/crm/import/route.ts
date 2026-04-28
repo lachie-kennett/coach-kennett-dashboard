@@ -3,9 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 async function sendWelcomeEmail(firstName: string, email: string) {
+  const resend = new Resend(process.env.RESEND_API_KEY)
   await resend.emails.send({
     from: 'Lachie <lachie@coachkennett.com>',
     to: email,
