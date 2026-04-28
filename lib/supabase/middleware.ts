@@ -26,7 +26,9 @@ export async function updateSession(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   const isAuthPage = request.nextUrl.pathname.startsWith('/login')
-  const isPublicPage = request.nextUrl.pathname.startsWith('/bloods/')
+  const isPublicPage =
+    request.nextUrl.pathname.startsWith('/bloods/') ||
+    request.nextUrl.pathname.startsWith('/api/webhooks/')
 
   if (!user && !isAuthPage && !isPublicPage) {
     const url = request.nextUrl.clone()
