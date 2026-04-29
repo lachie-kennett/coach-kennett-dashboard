@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
+import { google } from 'googleapis'
 
 function getAdmin() {
   return createServiceClient(
@@ -45,6 +46,51 @@ async function sendWelcomeEmail(firstName: string, email: string) {
 
       <p>Lachie</p>
     `,
+  })
+}
+
+async function appendToCRMSheet(name: string, email: string, mobile: string, birthday: string) {
+  const auth = new google.auth.JWT({
+    email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+    key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  })
+  const sheets = google.sheets({ version: 'v4', auth })
+  const sheetId = process.env.GOOGLE_CRM_SHEET_ID!
+  const sheetName = process.env.GOOGLE_CRM_SHEET_NAME ?? '🟢 Active Clients'
+
+  // Read row 2 for column headers
+  const headerRes = await sheets.spreadsheets.values.get({
+    spreadsheetId: sheetId,
+    range: `'${sheetName}'!2:2`,
+  })
+  const headers = (headerRes.data.values?.[0] ?? []).map((h: unknown) => String(h ?? '').toLowerCase())
+  const findCol = (...terms: string[]) =>
+    headers.findIndex((h: string) => terms.some(t => h.includes(t.toLowerCase())))
+
+  const firstNameCol = findCol('first name', 'firstname')
+  const lastNameCol  = findCol('last name', 'lastname')
+  const emailCol     = findCol('email')
+  const mobileCol    = findCol('mobile', 'phone', 'whatsapp')
+  const birthdayCol  = findCol('birthday', 'dob', 'date of birth')
+
+  const maxCol = Math.max(firstNameCol, lastNameCol, emailCol, mobileCol, birthdayCol)
+  const nameParts = name.split(' ')
+  const firstName = nameParts[0]
+  const lastName = nameParts.slice(1).join(' ')
+
+  const row = new Array(maxCol + 1).fill('')
+  if (firstNameCol >= 0) row[firstNameCol] = firstName
+  if (lastNameCol >= 0)  row[lastNameCol]  = lastName
+  if (emailCol >= 0)     row[emailCol]     = email
+  if (mobileCol >= 0)    row[mobileCol]    = mobile
+  if (birthdayCol >= 0)  row[birthdayCol]  = birthday
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: sheetId,
+    range: `'${sheetName}'!A:A`,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: { values: [row] },
   })
 }
 
@@ -135,6 +181,11 @@ export async function POST(request: NextRequest) {
     await admin.auth.admin.deleteUser(authData.user.id)
     return NextResponse.json({ error: dbError.message }, { status: 500 })
   }
+
+  // Append to CRM sheet — fire and forget
+  appendToCRMSheet(fullName, email.toLowerCase(), mobile, birthday).catch(err =>
+    console.error('Fillout webhook: CRM sheet append failed', err)
+  )
 
   // Send welcome email — fire and forget
   const firstName = fullName.split(' ')[0]
