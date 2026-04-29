@@ -77,6 +77,8 @@ export async function GET() {
   function extractIncome(report: Record<string, unknown>): { month: string; actual: number }[] {
     const allHeaders: string[] = ((report.Rows as {Cells: {Value: string}[]}[])?.[0]?.Cells ?? [])
       .slice(1).map(c => c.Value)
+    // Log headers to debug format
+    console.log('Xero P&L headers:', allHeaders)
     // Keep only month columns — format like "Jan-25" or "Jan 25", skip totals like "31 Dec 25"
     const monthRegex = /^[A-Za-z]{3}[-\s]\d{2}$/
     const validIndices = allHeaders.map((h, i) => ({ h: h.replace('-', ' '), i })).filter(({ h }) => monthRegex.test(h))
