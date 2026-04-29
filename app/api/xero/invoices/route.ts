@@ -63,7 +63,7 @@ export async function GET() {
   const dateStr = since.toISOString().split('T')[0]
 
   const res = await fetch(
-    `https://api.xero.com/api.xro/2.0/Invoices?Statuses=PAID&where=FullyPaidOnDate>DateTime(${dateStr.replace(/-/g, ',')})&order=FullyPaidOnDate ASC`,
+    `https://api.xero.com/api.xro/2.0/Invoices?Statuses=PAID&ModifiedAfter=${dateStr}&order=FullyPaidOnDate ASC`,
     {
       headers: {
         Authorization: `Bearer ${token.access_token}`,
