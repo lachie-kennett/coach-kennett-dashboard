@@ -57,13 +57,8 @@ export async function GET() {
   const token = await getValidToken()
   if (!token) return NextResponse.json({ connected: false }, { status: 200 })
 
-  // Fetch paid invoices from the last 24 months
-  const since = new Date()
-  since.setMonth(since.getMonth() - 24)
-  const dateStr = since.toISOString().split('T')[0]
-
   const res = await fetch(
-    `https://api.xero.com/api.xro/2.0/Invoices?Statuses=PAID&ModifiedAfter=${dateStr}&order=FullyPaidOnDate ASC`,
+    `https://api.xero.com/api.xro/2.0/Invoices?Statuses=PAID&Type=ACCREC&order=FullyPaidOnDate ASC`,
     {
       headers: {
         Authorization: `Bearer ${token.access_token}`,
@@ -86,21 +81,29 @@ export async function GET() {
     InvoiceNumber: string
   }[]
 
-  // Group by month
+  // Group by month — handle both ISO (2024-09-15T00:00:00) and /Date(ms)/ formats
   const byMonth: Record<string, number> = {}
   for (const inv of invoices) {
-    if (!inv.FullyPaidOnDate) continue
-    // Xero date format: /Date(1234567890000+0000)/
-    const ms = parseInt(inv.FullyPaidOnDate.replace(/\/Date\((\d+)[^)]*\)\//, '$1'))
-    const d = new Date(ms)
-    const key = d.toLocaleDateString('en-AU', { month: 'short', year: '2-digit' })
+    if (!inv.FullyPaidOnDate || !inv.AmountPaid) continue
+    let d: Date
+    const dotNet = inv.FullyPaidOnDate.match(/\/Date\((\d+)/)
+    if (dotNet) {
+      d = new Date(parseInt(dotNet[1]))
+    } else {
+      d = new Date(inv.FullyPaidOnDate)
+    }
+    if (isNaN(d.getTime())) continue
+    const key = `${d.toLocaleString('en-AU', { month: 'short' })} ${String(d.getFullYear()).slice(-2)}`
     byMonth[key] = (byMonth[key] ?? 0) + inv.AmountPaid
   }
 
-  const chartData = Object.entries(byMonth).map(([month, actual]) => ({
-    month,
-    actual: Math.round(actual),
-  }))
+  // Sort chronologically
+  const chartData = Object.entries(byMonth)
+    .sort(([a], [b]) => {
+      const parse = (s: string) => new Date(`01 ${s}`)
+      return parse(a).getTime() - parse(b).getTime()
+    })
+    .map(([month, actual]) => ({ month, actual: Math.round(actual) }))
 
   return NextResponse.json({ connected: true, chartData, invoices: invoices.length })
 }
