@@ -1,4 +1,10 @@
-import crypto from 'crypto'
+function pemToDer(pem: string): Uint8Array {
+  const b64 = pem
+    .replace(/-----BEGIN[^-]+-----/, '')
+    .replace(/-----END[^-]+-----/, '')
+    .replace(/\s+/g, '')
+  return Uint8Array.from(Buffer.from(b64, 'base64'))
+}
 
 async function getAccessToken(scopes: string[]): Promise<string> {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL!
@@ -19,10 +25,17 @@ async function getAccessToken(scopes: string[]): Promise<string> {
   const claimB64 = Buffer.from(JSON.stringify(claim)).toString('base64url')
   const input = `${headerB64}.${claimB64}`
 
-  const key = crypto.createPrivateKey(rawKey)
-  const sign = crypto.createSign('SHA256')
-  sign.update(input)
-  const sig = sign.sign(key).toString('base64url')
+  // Use Web Crypto API to avoid OpenSSL 3 compatibility issues
+  const subtle = globalThis.crypto.subtle
+  const cryptoKey = await subtle.importKey(
+    'pkcs8',
+    pemToDer(rawKey),
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+  const signatureBuffer = await subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, Buffer.from(input))
+  const sig = Buffer.from(signatureBuffer).toString('base64url')
 
   const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
