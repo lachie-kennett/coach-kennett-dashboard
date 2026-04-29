@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Trophy, Droplets, Zap, Users, ChevronLeft, Salad, ShieldAlert, Home, UserPlus, FolderOpen } from 'lucide-react'
+import { LayoutDashboard, Trophy, Droplets, Zap, Users, ChevronLeft, Salad, ShieldAlert, Home, UserPlus, FolderOpen, TrendingUp } from 'lucide-react'
 
 const clientTabs = [
   { href: '/dashboard',   label: 'My Data',     icon: LayoutDashboard },
@@ -17,6 +17,7 @@ const coachTabs = [
   { href: '/clients',     label: 'Clients',     icon: Users },
   { href: '/onboarding',  label: 'Onboarding',  icon: UserPlus },
   { href: '/retention',   label: 'Retention',   icon: ShieldAlert },
+  { href: '/revenue',     label: 'Revenue',     icon: TrendingUp },
 ]
 
 export default function BottomNav({ isCoach }: { isCoach: boolean }) {
