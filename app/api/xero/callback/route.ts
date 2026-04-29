@@ -11,7 +11,9 @@ export async function GET(request: NextRequest) {
   const error = searchParams.get('error')
 
   if (error || !code) {
-    return NextResponse.redirect(`${process.env.XERO_REDIRECT_URI?.replace('/api/xero/callback', '')}/revenue?xero=error`)
+    const desc = searchParams.get('error_description') ?? error ?? 'unknown'
+    console.error('Xero auth error:', error, desc)
+    return NextResponse.redirect(`https://coach-kennett-dashboard.vercel.app/revenue?xero=error&msg=${encodeURIComponent(desc)}`)
   }
 
   // Exchange code for tokens
