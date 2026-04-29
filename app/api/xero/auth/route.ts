@@ -19,7 +19,7 @@ export async function GET() {
     response_type: 'code',
     client_id: process.env.XERO_CLIENT_ID!,
     redirect_uri: process.env.XERO_REDIRECT_URI!,
-    scope: 'openid profile email offline_access accounting.invoices.read accounting.payments.read',
+    scope: 'openid profile email offline_access accounting.invoices.read accounting.payments.read accounting.reports.read',
     state: 'xero_connect',
   })
 
