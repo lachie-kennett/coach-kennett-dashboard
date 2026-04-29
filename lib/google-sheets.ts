@@ -1,9 +1,10 @@
-function pemToDer(pem: string): Uint8Array {
+function pemToDer(pem: string): ArrayBuffer {
   const b64 = pem
     .replace(/-----BEGIN[^-]+-----/, '')
     .replace(/-----END[^-]+-----/, '')
     .replace(/\s+/g, '')
-  return Uint8Array.from(Buffer.from(b64, 'base64'))
+  const buf = Buffer.from(b64, 'base64')
+  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer
 }
 
 async function getAccessToken(scopes: string[]): Promise<string> {
