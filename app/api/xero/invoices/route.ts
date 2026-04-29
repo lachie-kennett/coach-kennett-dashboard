@@ -63,13 +63,13 @@ export async function GET() {
     Accept: 'application/json',
   }
 
-  // Single call: current month + 35 comparison months = 36 months of monthly data
+  // Single call: current month + 11 comparison months = 12 months of monthly data (Xero max periods=11)
   const now = new Date()
   const fromDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
   const toDate = now.toISOString().split('T')[0]
 
   const res = await fetch(
-    `https://api.xero.com/api.xro/2.0/Reports/ProfitAndLoss?fromDate=${fromDate}&toDate=${toDate}&periods=35&timeframe=MONTH`,
+    `https://api.xero.com/api.xro/2.0/Reports/ProfitAndLoss?fromDate=${fromDate}&toDate=${toDate}&periods=11&timeframe=MONTH`,
     { headers: xeroHeaders }
   )
 
