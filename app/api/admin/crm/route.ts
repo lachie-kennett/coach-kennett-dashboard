@@ -1,18 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
-import { google } from 'googleapis'
-
-function getSheetsClient() {
-  const auth = new google.auth.GoogleAuth({
-    credentials: {
-      client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    },
-    scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
-  })
-  return google.sheets({ version: 'v4', auth })
-}
+import { sheetsGet } from '@/lib/google-sheets'
 
 function getAdmin() {
   return createServiceClient(
@@ -48,14 +37,9 @@ export async function GET() {
 
   const sheetId = process.env.GOOGLE_CRM_SHEET_ID!
   const sheetName = process.env.GOOGLE_CRM_SHEET_NAME ?? '🟢 Active Clients'
-  const sheets = getSheetsClient()
 
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: sheetId,
-    range: `${sheetName}!A:AZ`,
-  })
-
-  const rows = res.data.values ?? []
+  const res = await sheetsGet(sheetId, `${sheetName}!A:AZ`)
+  const rows = res.values ?? []
   if (rows.length < 3) return NextResponse.json([])
 
   // Row 1 is section labels, row 2 is actual column headers

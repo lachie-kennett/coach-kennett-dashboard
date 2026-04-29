@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
-import { google } from 'googleapis'
+import { sheetsGet, sheetsAppend } from '@/lib/google-sheets'
 
 function getAdmin() {
   return createServiceClient(
@@ -50,23 +50,11 @@ async function sendWelcomeEmail(firstName: string, email: string) {
 }
 
 async function appendToCRMSheet(name: string, email: string, mobile: string, birthday: string) {
-  const auth = new google.auth.GoogleAuth({
-    credentials: {
-      client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    },
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-  })
-  const sheets = google.sheets({ version: 'v4', auth })
   const sheetId = process.env.GOOGLE_CRM_SHEET_ID!
   const sheetName = process.env.GOOGLE_CRM_SHEET_NAME ?? '🟢 Active Clients'
 
-  // Read row 2 for column headers
-  const headerRes = await sheets.spreadsheets.values.get({
-    spreadsheetId: sheetId,
-    range: `'${sheetName}'!2:2`,
-  })
-  const headers = (headerRes.data.values?.[0] ?? []).map((h: unknown) => String(h ?? '').toLowerCase())
+  const headerRes = await sheetsGet(sheetId, `${sheetName}!2:2`)
+  const headers = (headerRes.values?.[0] ?? []).map((h: string) => String(h ?? '').toLowerCase())
   const findCol = (...terms: string[]) =>
     headers.findIndex((h: string) => terms.some(t => h.includes(t.toLowerCase())))
 
@@ -88,12 +76,7 @@ async function appendToCRMSheet(name: string, email: string, mobile: string, bir
   if (mobileCol >= 0)    row[mobileCol]    = mobile
   if (birthdayCol >= 0)  row[birthdayCol]  = birthday
 
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: sheetId,
-    range: `'${sheetName}'!A:A`,
-    valueInputOption: 'USER_ENTERED',
-    requestBody: { values: [row] },
-  })
+  await sheetsAppend(sheetId, `${sheetName}!A:A`, [row])
 }
 
 // Extract a field value from Fillout's questions array by matching label
