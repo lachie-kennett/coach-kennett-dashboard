@@ -2,7 +2,9 @@ import crypto from 'crypto'
 
 async function getAccessToken(scopes: string[]): Promise<string> {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL!
-  const rawKey = (process.env.GOOGLE_PRIVATE_KEY ?? '').replace(/\\n/g, '\n')
+  const rawKey = process.env.GOOGLE_PRIVATE_KEY_B64
+    ? Buffer.from(process.env.GOOGLE_PRIVATE_KEY_B64, 'base64').toString('utf-8')
+    : (process.env.GOOGLE_PRIVATE_KEY ?? '').replace(/\\n/g, '\n')
 
   const now = Math.floor(Date.now() / 1000)
   const claim = {
