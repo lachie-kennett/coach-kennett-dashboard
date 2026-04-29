@@ -57,43 +57,60 @@ export async function GET() {
   const token = await getValidToken()
   if (!token) return NextResponse.json({ connected: false }, { status: 200 })
 
-  // Fetch all accounts receivable payments (captures Pay Advantage + invoice payments)
-  const res = await fetch(
-    `https://api.xero.com/api.xro/2.0/Payments?PaymentType=ACCRECPAYMENT`,
-    {
-      headers: {
-        Authorization: `Bearer ${token.access_token}`,
-        'Xero-Tenant-Id': token.tenant_id,
-        Accept: 'application/json',
-      },
-    }
-  )
-
-  if (!res.ok) {
-    console.error('Xero payments fetch failed', await res.text())
-    return NextResponse.json({ error: 'Failed to fetch payments' }, { status: 500 })
+  const headers = {
+    Authorization: `Bearer ${token.access_token}`,
+    'Xero-Tenant-Id': token.tenant_id,
+    Accept: 'application/json',
   }
 
-  const data = await res.json()
-  const payments = (data.Payments ?? []) as {
-    Amount: number
+  // Get all Revenue-type accounts so we can filter bank transactions by them
+  const accountsRes = await fetch(
+    `https://api.xero.com/api.xro/2.0/Accounts?Type=REVENUE`,
+    { headers }
+  )
+  const accountsData = await accountsRes.json()
+  const revenueAccountCodes = new Set(
+    (accountsData.Accounts ?? []).map((a: { Code: string }) => a.Code)
+  )
+
+  // Get all reconciled RECEIVE bank transactions
+  const txRes = await fetch(
+    `https://api.xero.com/api.xro/2.0/BankTransactions?Type=RECEIVE&Status=AUTHORISED`,
+    { headers }
+  )
+
+  if (!txRes.ok) {
+    console.error('Xero bank transactions fetch failed', await txRes.text())
+    return NextResponse.json({ error: 'Failed to fetch bank transactions' }, { status: 500 })
+  }
+
+  const txData = await txRes.json()
+  const transactions = (txData.BankTransactions ?? []) as {
     Date: string
+    Total: number
     Status: string
+    LineItems: { AccountCode: string; LineAmount: number }[]
   }[]
 
   const byMonth: Record<string, number> = {}
-  for (const p of payments) {
-    if (!p.Date || !p.Amount || p.Status === 'DELETED') continue
+  for (const tx of transactions) {
+    if (!tx.Date) continue
+    // Sum only line items posted to revenue accounts
+    const salesAmount = (tx.LineItems ?? [])
+      .filter(li => revenueAccountCodes.has(li.AccountCode))
+      .reduce((sum, li) => sum + (li.LineAmount ?? 0), 0)
+    if (salesAmount <= 0) continue
+
     let d: Date
-    const dotNet = p.Date.match(/\/Date\((\d+)/)
+    const dotNet = tx.Date.match(/\/Date\((\d+)/)
     if (dotNet) {
       d = new Date(parseInt(dotNet[1]))
     } else {
-      d = new Date(p.Date)
+      d = new Date(tx.Date)
     }
     if (isNaN(d.getTime())) continue
     const key = `${d.toLocaleString('en-AU', { month: 'short' })} ${String(d.getFullYear()).slice(-2)}`
-    byMonth[key] = (byMonth[key] ?? 0) + p.Amount
+    byMonth[key] = (byMonth[key] ?? 0) + salesAmount
   }
 
   const chartData = Object.entries(byMonth)
@@ -101,5 +118,5 @@ export async function GET() {
     .map(([month, actual]) => ({ month, actual: Math.round(actual) }))
     .filter(d => d.actual > 0)
 
-  return NextResponse.json({ connected: true, chartData, invoices: payments.length })
+  return NextResponse.json({ connected: true, chartData, invoices: transactions.length })
 }
