@@ -75,8 +75,12 @@ export async function GET() {
   }
 
   function extractIncome(report: Record<string, unknown>): { month: string; actual: number }[] {
-    const colHeaders: string[] = ((report.Rows as {Cells: {Value: string}[]}[])?.[0]?.Cells ?? [])
+    const allHeaders: string[] = ((report.Rows as {Cells: {Value: string}[]}[])?.[0]?.Cells ?? [])
       .slice(1).map(c => c.Value)
+    // Keep only month columns — format like "Jan-25" or "Jan 25", skip totals like "31 Dec 25"
+    const monthRegex = /^[A-Za-z]{3}[-\s]\d{2}$/
+    const validIndices = allHeaders.map((h, i) => ({ h: h.replace('-', ' '), i })).filter(({ h }) => monthRegex.test(h))
+
     let incomeValues: number[] | null = null
     for (const section of (report.Rows as {RowType: string; Title: string; Rows: {RowType: string; Cells: {Value: string}[]}[]}[]) ?? []) {
       if (section.RowType === 'Section' && section.Title?.toLowerCase().includes('income')) {
@@ -90,7 +94,9 @@ export async function GET() {
       if (incomeValues) break
     }
     if (!incomeValues) return []
-    return colHeaders.map((h, i) => ({ month: h.replace('-', ' '), actual: Math.round(incomeValues![i] ?? 0) })).filter(d => d.actual > 0)
+    return validIndices
+      .map(({ h, i }) => ({ month: h, actual: Math.round(incomeValues![i] ?? 0) }))
+      .filter(d => d.actual > 0)
   }
 
   const now = new Date()
