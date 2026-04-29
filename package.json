@@ -22,7 +22,7 @@
     "resend": "^6.12.2"
   },
   "engines": {
-    "node": "18.x"
+    "node": "24.x"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
