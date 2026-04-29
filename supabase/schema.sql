@@ -80,6 +80,24 @@ create policy "Clients can view own blood tests"
   using (auth.uid() = client_id);
 
 -- ============================================================
+-- Xero OAuth tokens (single row, id = 1)
+-- ============================================================
+
+create table public.xero_tokens (
+  id integer primary key,
+  access_token text not null,
+  refresh_token text not null,
+  expires_at timestamptz not null,
+  tenant_id text not null,
+  updated_at timestamptz default now()
+);
+
+-- Only accessible server-side via service role key — lock down all client access
+alter table public.xero_tokens enable row level security;
+
+-- No RLS policies: service role bypasses RLS; anon/authenticated users get no access
+
+-- ============================================================
 -- Supabase Storage bucket (create in Supabase dashboard > Storage)
 -- ============================================================
 -- 1. Create a new bucket named: blood-tests
