@@ -63,54 +63,52 @@ export async function GET() {
     Accept: 'application/json',
   }
 
-  // Fetch P&L report — 36 months of monthly income data
-  const fromDate = '2022-01-01'
-  const toDate = new Date().toISOString().split('T')[0]
-
-  const res = await fetch(
-    `https://api.xero.com/api.xro/2.0/Reports/ProfitAndLoss?fromDate=${fromDate}&toDate=${toDate}&periods=36&timeframe=MONTH`,
-    { headers: xeroHeaders }
-  )
-
-  if (!res.ok) {
-    console.error('Xero P&L fetch failed', await res.text())
-    return NextResponse.json({ error: 'Failed to fetch P&L report' }, { status: 500 })
+  // Fetch P&L report in yearly chunks (Xero limits to 365 days per request)
+  async function fetchPnL(fromDate: string, toDate: string) {
+    const res = await fetch(
+      `https://api.xero.com/api.xro/2.0/Reports/ProfitAndLoss?fromDate=${fromDate}&toDate=${toDate}&timeframe=MONTH`,
+      { headers: xeroHeaders }
+    )
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.Reports?.[0] ?? null
   }
 
-  const data = await res.json()
-  const report = data.Reports?.[0]
-  if (!report) return NextResponse.json({ connected: true, chartData: [], invoices: 0 })
-
-  // Column headers are in the first row (skip first cell which is the label)
-  const colHeaders: string[] = (report.Rows?.[0]?.Cells ?? [])
-    .slice(1)
-    .map((c: { Value: string }) => c.Value)
-
-  // Find Total Income summary row
-  let incomeValues: number[] | null = null
-  for (const section of report.Rows ?? []) {
-    if (section.RowType === 'Section' && section.Title?.toLowerCase().includes('income')) {
-      for (const row of section.Rows ?? []) {
-        if (row.RowType === 'SummaryRow') {
-          incomeValues = (row.Cells ?? [])
-            .slice(1)
-            .map((c: { Value: string }) => Math.abs(parseFloat(c.Value) || 0))
-          break
+  function extractIncome(report: Record<string, unknown>): { month: string; actual: number }[] {
+    const colHeaders: string[] = ((report.Rows as {Cells: {Value: string}[]}[])?.[0]?.Cells ?? [])
+      .slice(1).map(c => c.Value)
+    let incomeValues: number[] | null = null
+    for (const section of (report.Rows as {RowType: string; Title: string; Rows: {RowType: string; Cells: {Value: string}[]}[]}[]) ?? []) {
+      if (section.RowType === 'Section' && section.Title?.toLowerCase().includes('income')) {
+        for (const row of section.Rows ?? []) {
+          if (row.RowType === 'SummaryRow') {
+            incomeValues = (row.Cells ?? []).slice(1).map(c => Math.abs(parseFloat(c.Value) || 0))
+            break
+          }
         }
       }
+      if (incomeValues) break
     }
-    if (incomeValues) break
+    if (!incomeValues) return []
+    return colHeaders.map((h, i) => ({ month: h.replace('-', ' '), actual: Math.round(incomeValues![i] ?? 0) })).filter(d => d.actual > 0)
   }
 
-  if (!incomeValues) return NextResponse.json({ connected: true, chartData: [], invoices: 0 })
+  const now = new Date()
+  const ranges = [
+    { from: `${now.getFullYear() - 2}-01-01`, to: `${now.getFullYear() - 2}-12-31` },
+    { from: `${now.getFullYear() - 1}-01-01`, to: `${now.getFullYear() - 1}-12-31` },
+    { from: `${now.getFullYear()}-01-01`, to: now.toISOString().split('T')[0] },
+  ]
 
-  // Parse Xero month headers (e.g. "Jan-25") into our format ("Jan 25")
-  const chartData = colHeaders
-    .map((h, i) => ({
-      month: h.replace('-', ' '),
-      actual: Math.round(incomeValues![i] ?? 0),
-    }))
-    .filter(d => d.actual > 0)
+  const results = await Promise.all(ranges.map(r => fetchPnL(r.from, r.to)))
+  const allData = results.flatMap(r => r ? extractIncome(r) : [])
+
+  // Deduplicate and sort
+  const byMonth: Record<string, number> = {}
+  for (const d of allData) byMonth[d.month] = (byMonth[d.month] ?? 0) + d.actual
+  const chartData = Object.entries(byMonth)
+    .sort(([a], [b]) => new Date(`01 ${a}`).getTime() - new Date(`01 ${b}`).getTime())
+    .map(([month, actual]) => ({ month, actual }))
 
   return NextResponse.json({ connected: true, chartData, invoices: chartData.length })
 }
