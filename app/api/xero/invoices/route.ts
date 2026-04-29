@@ -57,12 +57,9 @@ export async function GET() {
   const token = await getValidToken()
   if (!token) return NextResponse.json({ connected: false }, { status: 200 })
 
-  // Use P&L report to capture all income regardless of payment method
-  const fromDate = '2022-01-01'
-  const toDate = new Date().toISOString().split('T')[0]
-
+  // Fetch all accounts receivable payments (captures Pay Advantage + invoice payments)
   const res = await fetch(
-    `https://api.xero.com/api.xro/2.0/Reports/ProfitAndLoss?fromDate=${fromDate}&toDate=${toDate}&periods=36&timeframe=MONTH`,
+    `https://api.xero.com/api.xro/2.0/Payments?PaymentType=ACCRECPAYMENT`,
     {
       headers: {
         Authorization: `Bearer ${token.access_token}`,
@@ -73,40 +70,36 @@ export async function GET() {
   )
 
   if (!res.ok) {
-    const errText = await res.text()
-    console.error('Xero P&L fetch failed', errText)
-    return NextResponse.json({ error: 'Failed to fetch P&L report' }, { status: 500 })
+    console.error('Xero payments fetch failed', await res.text())
+    return NextResponse.json({ error: 'Failed to fetch payments' }, { status: 500 })
   }
 
   const data = await res.json()
-  const report = data.Reports?.[0]
-  if (!report) return NextResponse.json({ connected: true, chartData: [], invoices: 0 })
+  const payments = (data.Payments ?? []) as {
+    Amount: number
+    Date: string
+    Status: string
+  }[]
 
-  // Extract column headers (months) from the report
-  const headers: string[] = (report.Rows?.[0]?.Cells ?? []).map((c: { Value: string }) => c.Value).slice(1)
-
-  // Find the "Total Income" or "Income" row
-  let incomeRow: number[] | null = null
-  for (const section of report.Rows ?? []) {
-    if (section.RowType === 'Section' && section.Title?.toLowerCase().includes('income')) {
-      for (const row of section.Rows ?? []) {
-        if (row.RowType === 'SummaryRow') {
-          incomeRow = (row.Cells ?? []).slice(1).map((c: { Value: string }) => parseFloat(c.Value) || 0)
-          break
-        }
-      }
+  const byMonth: Record<string, number> = {}
+  for (const p of payments) {
+    if (!p.Date || !p.Amount || p.Status === 'DELETED') continue
+    let d: Date
+    const dotNet = p.Date.match(/\/Date\((\d+)/)
+    if (dotNet) {
+      d = new Date(parseInt(dotNet[1]))
+    } else {
+      d = new Date(p.Date)
     }
-    if (incomeRow) break
+    if (isNaN(d.getTime())) continue
+    const key = `${d.toLocaleString('en-AU', { month: 'short' })} ${String(d.getFullYear()).slice(-2)}`
+    byMonth[key] = (byMonth[key] ?? 0) + p.Amount
   }
 
-  if (!incomeRow) return NextResponse.json({ connected: true, chartData: [], invoices: 0 })
-
-  const chartData = headers
-    .map((month, i) => ({
-      month,
-      actual: Math.round(Math.abs(incomeRow![i] ?? 0)),
-    }))
+  const chartData = Object.entries(byMonth)
+    .sort(([a], [b]) => new Date(`01 ${a}`).getTime() - new Date(`01 ${b}`).getTime())
+    .map(([month, actual]) => ({ month, actual: Math.round(actual) }))
     .filter(d => d.actual > 0)
 
-  return NextResponse.json({ connected: true, chartData, invoices: chartData.length })
+  return NextResponse.json({ connected: true, chartData, invoices: payments.length })
 }
