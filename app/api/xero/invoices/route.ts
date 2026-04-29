@@ -57,66 +57,60 @@ export async function GET() {
   const token = await getValidToken()
   if (!token) return NextResponse.json({ connected: false }, { status: 200 })
 
-  const headers = {
+  const xeroHeaders = {
     Authorization: `Bearer ${token.access_token}`,
     'Xero-Tenant-Id': token.tenant_id,
     Accept: 'application/json',
   }
 
-  // Get all Revenue-type accounts so we can filter bank transactions by them
-  const accountsRes = await fetch(
-    `https://api.xero.com/api.xro/2.0/Accounts?Type=REVENUE`,
-    { headers }
-  )
-  const accountsData = await accountsRes.json()
-  const revenueAccountCodes = new Set(
-    (accountsData.Accounts ?? []).map((a: { Code: string }) => a.Code)
+  // Fetch P&L report — 36 months of monthly income data
+  const fromDate = '2022-01-01'
+  const toDate = new Date().toISOString().split('T')[0]
+
+  const res = await fetch(
+    `https://api.xero.com/api.xro/2.0/Reports/ProfitAndLoss?fromDate=${fromDate}&toDate=${toDate}&periods=36&timeframe=MONTH`,
+    { headers: xeroHeaders }
   )
 
-  // Get all reconciled RECEIVE bank transactions
-  const txRes = await fetch(
-    `https://api.xero.com/api.xro/2.0/BankTransactions?Type=RECEIVE&Status=AUTHORISED`,
-    { headers }
-  )
-
-  if (!txRes.ok) {
-    console.error('Xero bank transactions fetch failed', await txRes.text())
-    return NextResponse.json({ error: 'Failed to fetch bank transactions' }, { status: 500 })
+  if (!res.ok) {
+    console.error('Xero P&L fetch failed', await res.text())
+    return NextResponse.json({ error: 'Failed to fetch P&L report' }, { status: 500 })
   }
 
-  const txData = await txRes.json()
-  const transactions = (txData.BankTransactions ?? []) as {
-    Date: string
-    Total: number
-    Status: string
-    LineItems: { AccountCode: string; LineAmount: number }[]
-  }[]
+  const data = await res.json()
+  const report = data.Reports?.[0]
+  if (!report) return NextResponse.json({ connected: true, chartData: [], invoices: 0 })
 
-  const byMonth: Record<string, number> = {}
-  for (const tx of transactions) {
-    if (!tx.Date) continue
-    // Sum only line items posted to revenue accounts
-    const salesAmount = (tx.LineItems ?? [])
-      .filter(li => revenueAccountCodes.has(li.AccountCode))
-      .reduce((sum, li) => sum + (li.LineAmount ?? 0), 0)
-    if (salesAmount <= 0) continue
+  // Column headers are in the first row (skip first cell which is the label)
+  const colHeaders: string[] = (report.Rows?.[0]?.Cells ?? [])
+    .slice(1)
+    .map((c: { Value: string }) => c.Value)
 
-    let d: Date
-    const dotNet = tx.Date.match(/\/Date\((\d+)/)
-    if (dotNet) {
-      d = new Date(parseInt(dotNet[1]))
-    } else {
-      d = new Date(tx.Date)
+  // Find Total Income summary row
+  let incomeValues: number[] | null = null
+  for (const section of report.Rows ?? []) {
+    if (section.RowType === 'Section' && section.Title?.toLowerCase().includes('income')) {
+      for (const row of section.Rows ?? []) {
+        if (row.RowType === 'SummaryRow') {
+          incomeValues = (row.Cells ?? [])
+            .slice(1)
+            .map((c: { Value: string }) => Math.abs(parseFloat(c.Value) || 0))
+          break
+        }
+      }
     }
-    if (isNaN(d.getTime())) continue
-    const key = `${d.toLocaleString('en-AU', { month: 'short' })} ${String(d.getFullYear()).slice(-2)}`
-    byMonth[key] = (byMonth[key] ?? 0) + salesAmount
+    if (incomeValues) break
   }
 
-  const chartData = Object.entries(byMonth)
-    .sort(([a], [b]) => new Date(`01 ${a}`).getTime() - new Date(`01 ${b}`).getTime())
-    .map(([month, actual]) => ({ month, actual: Math.round(actual) }))
+  if (!incomeValues) return NextResponse.json({ connected: true, chartData: [], invoices: 0 })
+
+  // Parse Xero month headers (e.g. "Jan-25") into our format ("Jan 25")
+  const chartData = colHeaders
+    .map((h, i) => ({
+      month: h.replace('-', ' '),
+      actual: Math.round(incomeValues![i] ?? 0),
+    }))
     .filter(d => d.actual > 0)
 
-  return NextResponse.json({ connected: true, chartData, invoices: transactions.length })
+  return NextResponse.json({ connected: true, chartData, invoices: chartData.length })
 }
