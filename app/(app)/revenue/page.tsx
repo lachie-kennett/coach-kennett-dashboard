@@ -121,7 +121,7 @@ export default function RevenuePage() {
                   <Tooltip
                     contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8 }}
                     labelStyle={{ color: '#f1f5f9', fontSize: 12 }}
-                    formatter={(v: number) => [fmt(v), 'Revenue']}
+                    formatter={(v) => [fmt(Number(v)), 'Revenue']}
                   />
                   <Area
                     type="monotone"
