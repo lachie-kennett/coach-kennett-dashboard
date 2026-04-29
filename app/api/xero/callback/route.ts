@@ -30,22 +30,32 @@ export async function GET(request: NextRequest) {
     }),
   })
 
+  const tokenText = await tokenRes.text()
   if (!tokenRes.ok) {
-    console.error('Xero token exchange failed', await tokenRes.text())
-    return NextResponse.redirect(`https://coach-kennett-dashboard.vercel.app/revenue?xero=error`)
+    console.error('Xero token exchange failed', tokenRes.status, tokenText)
+    return NextResponse.redirect(`https://coach-kennett-dashboard.vercel.app/revenue?xero=error&msg=${encodeURIComponent(`token_exchange_${tokenRes.status}: ${tokenText.slice(0, 200)}`)}`)
   }
 
-  const tokens = await tokenRes.json()
+  const tokens = JSON.parse(tokenText)
 
   // Get tenant (organisation) ID
   const connRes = await fetch('https://api.xero.com/connections', {
     headers: { Authorization: `Bearer ${tokens.access_token}` },
   })
+  if (!connRes.ok) {
+    const ct = await connRes.text()
+    console.error('Xero connections fetch failed', connRes.status, ct)
+    return NextResponse.redirect(`https://coach-kennett-dashboard.vercel.app/revenue?xero=error&msg=${encodeURIComponent(`connections_${connRes.status}: ${ct.slice(0, 200)}`)}`)
+  }
   const connections = await connRes.json()
   const tenantId = connections[0]?.tenantId ?? null
+  if (!tenantId) {
+    console.error('Xero: no tenantId in connections', connections)
+    return NextResponse.redirect(`https://coach-kennett-dashboard.vercel.app/revenue?xero=error&msg=${encodeURIComponent('no_tenant_found')}`)
+  }
 
   const admin = getAdmin()
-  await admin.from('xero_tokens').upsert({
+  const { error: upsertError } = await admin.from('xero_tokens').upsert({
     id: 1,
     access_token: tokens.access_token,
     refresh_token: tokens.refresh_token,
@@ -53,6 +63,11 @@ export async function GET(request: NextRequest) {
     tenant_id: tenantId,
     updated_at: new Date().toISOString(),
   })
+
+  if (upsertError) {
+    console.error('Xero: failed to save tokens to DB', upsertError)
+    return NextResponse.redirect(`https://coach-kennett-dashboard.vercel.app/revenue?xero=error&msg=${encodeURIComponent(`db_error: ${upsertError.message}`)}`)
+  }
 
   return NextResponse.redirect(`https://coach-kennett-dashboard.vercel.app/revenue?xero=connected`)
 }
